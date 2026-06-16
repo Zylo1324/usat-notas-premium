@@ -198,7 +198,7 @@ function serializeState() {
   };
 }
 
-function runNodeScript(scriptName, credentials) {
+function runNodeScript(scriptName, credentials, headless = true) {
   return new Promise((resolve) => {
     const script = path.join(scriptsDir(), scriptName);
     if (!fs.existsSync(script)) {
@@ -209,7 +209,8 @@ function runNodeScript(scriptName, credentials) {
     fs.mkdirSync(dataDir(), { recursive: true });
     fs.mkdirSync(syllabusDir(), { recursive: true });
 
-    const child = spawn("node", [script, "--headless"], {
+    const args = headless ? [script, "--headless"] : [script];
+    const child = spawn("node", args, {
       cwd: workspaceRoot(),
       windowsHide: true,
       env: {
@@ -249,15 +250,25 @@ function runNodeScript(scriptName, credentials) {
   });
 }
 
+function looksBlocked(message) {
+  return /blocked|Web Page Blocked|Attack ID|URL you requested has been blocked/i.test(message || "");
+}
+
+async function runNodeScriptWithFallback(scriptName, credentials) {
+  const silent = await runNodeScript(scriptName, credentials, true);
+  if (silent.ok || !looksBlocked(silent.message)) return silent;
+  return runNodeScript(scriptName, credentials, false);
+}
+
 async function updateCampus(credentials) {
   if (!credentials?.user || !credentials?.password) {
     return { ok: false, message: "Falta codigo o contrasena USAT." };
   }
 
-  const grades = await runNodeScript("usat-grades-scraper.js", credentials);
+  const grades = await runNodeScriptWithFallback("usat-grades-scraper.js", credentials);
   if (!grades.ok) return grades;
 
-  const syllabi = await runNodeScript("usat-silabus-downloader.js", credentials);
+  const syllabi = await runNodeScriptWithFallback("usat-silabus-downloader.js", credentials);
   if (!syllabi.ok) return syllabi;
 
   return { ok: true, state: serializeState(), message: `${grades.message}\n${syllabi.message}` };
