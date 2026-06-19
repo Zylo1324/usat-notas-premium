@@ -1,7 +1,8 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, net, protocol } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { pathToFileURL } = require("url");
 
 const ROMAN_TO_NUM = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
 
@@ -19,6 +20,10 @@ function workspaceRoot() {
 
 function appRoot() {
   return isDev() ? path.resolve(__dirname, "..") : path.join(process.resourcesPath, "app.asar");
+}
+
+function outDir() {
+  return path.join(appRoot(), "out");
 }
 
 function dataDir() {
@@ -290,8 +295,29 @@ async function createWindow() {
     }
   });
 
-  const filePath = path.join(appRoot(), "out", "index.html");
-  await win.loadFile(filePath);
+  await win.loadURL("app://usat/index.html");
+}
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "app",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true
+    }
+  }
+]);
+
+function registerAppProtocol() {
+  protocol.handle("app", (request) => {
+    const url = new URL(request.url);
+    let pathname = decodeURIComponent(url.pathname);
+    if (!pathname || pathname === "/") pathname = "/index.html";
+    const normalized = path.normalize(pathname).replace(/^(\.\.[/\\])+/, "");
+    const filePath = path.join(outDir(), normalized);
+    return net.fetch(pathToFileURL(filePath).toString());
+  });
 }
 
 ipcMain.handle("usat:updateCampus", async (_event, credentials) => updateCampus(credentials));
@@ -312,7 +338,10 @@ ipcMain.handle("usat:exportSummary", async (_event, payload) => {
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  registerAppProtocol();
+  return createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
