@@ -101,14 +101,8 @@ export default function Home() {
     window.setTimeout(() => setToast(""), 4200);
   }
 
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function runLogin(credentials: { user?: string; password?: string; useStored?: boolean }) {
     setError("");
-
-    if (!studentCode.trim() || !password.trim()) {
-      setError("Coloca tu codigo USAT y tu contrasena para iniciar sesion.");
-      return;
-    }
 
     if (!window.usatDesktop) {
       setError(
@@ -120,8 +114,9 @@ export default function Home() {
     setLoading(true);
     try {
       const result = await window.usatDesktop.updateCampus({
-        user: studentCode.trim(),
-        password
+        user: credentials.user,
+        password: credentials.password,
+        useStored: credentials.useStored
       });
 
       if (!result.ok || !result.state) {
@@ -134,7 +129,7 @@ export default function Home() {
       setPassword("");
 
       await saveSessionSnapshot({
-        studentCode: studentCode.trim(),
+        studentCode: credentials.user || studentCode.trim() || "sesion_guardada",
         courseCount: result.state.courses.length,
         capturedAt: result.state.courses[0]?.capturedAt
       }).catch(() => null);
@@ -145,6 +140,21 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!studentCode.trim() || !password.trim()) {
+      setError("Coloca tu codigo USAT y tu contrasena para iniciar sesion.");
+      return;
+    }
+
+    await runLogin({ user: studentCode.trim(), password });
+  }
+
+  async function loginWithStoredSession() {
+    await runLogin({ useStored: true });
   }
 
   function logout() {
@@ -363,6 +373,10 @@ export default function Home() {
             <button className="primary-btn" disabled={loading} type="submit">
               {loading ? <RefreshCw className="spin" /> : <LockKeyhole />}
               {loading ? "Entrando y actualizando..." : "Entrar y actualizar notas"}
+            </button>
+            <button className="plain-btn" disabled={loading} onClick={loginWithStoredSession} type="button">
+              <ShieldCheck size={18} />
+              Entrar con sesion guardada
             </button>
 
             {error ? <div className="error-box">{error}</div> : null}

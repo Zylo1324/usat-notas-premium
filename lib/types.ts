@@ -32,7 +32,7 @@ export type AppState = {
 };
 
 export type DesktopApi = {
-  updateCampus: (credentials: { user: string; password: string }) => Promise<{
+  updateCampus: (credentials: { user?: string; password?: string; useStored?: boolean }) => Promise<{
     ok: boolean;
     state?: AppState;
     message?: string;

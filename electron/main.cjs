@@ -210,16 +210,20 @@ function runNodeScript(scriptName, credentials, headless = true) {
     fs.mkdirSync(syllabusDir(), { recursive: true });
 
     const args = headless ? [script, "--headless"] : [script];
+    const env = {
+      ...process.env,
+      USAT_GRADES_OUT: gradesPath(),
+      USAT_SYLLABUS_DIR: syllabusDir()
+    };
+    if (credentials?.user && credentials?.password) {
+      env.USAT_USER = credentials.user;
+      env.USAT_PASS = credentials.password;
+    }
+
     const child = spawn("node", args, {
       cwd: workspaceRoot(),
       windowsHide: true,
-      env: {
-        ...process.env,
-        USAT_USER: credentials.user,
-        USAT_PASS: credentials.password,
-        USAT_GRADES_OUT: gradesPath(),
-        USAT_SYLLABUS_DIR: syllabusDir()
-      }
+      env
     });
 
     let stdout = "";
@@ -257,7 +261,7 @@ async function runNodeScriptWithFallback(scriptName, credentials) {
 }
 
 async function updateCampus(credentials) {
-  if (!credentials?.user || !credentials?.password) {
+  if (!credentials?.useStored && (!credentials?.user || !credentials?.password)) {
     return { ok: false, message: "Falta codigo o contrasena USAT." };
   }
 

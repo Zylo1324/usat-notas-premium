@@ -236,6 +236,11 @@ input:disabled {
   background: linear-gradient(135deg, var(--brand), var(--brand-dark));
 }
 
+.login-card .plain-btn {
+  width: 100%;
+  margin-top: 10px;
+}
+
 .secondary-btn {
   color: #fff;
   background: linear-gradient(135deg, var(--blue), #1a43af);
