@@ -250,13 +250,9 @@ function runNodeScript(scriptName, credentials, headless = true) {
   });
 }
 
-function looksBlocked(message) {
-  return /blocked|Web Page Blocked|Attack ID|URL you requested has been blocked/i.test(message || "");
-}
-
 async function runNodeScriptWithFallback(scriptName, credentials) {
   const silent = await runNodeScript(scriptName, credentials, true);
-  if (silent.ok || !looksBlocked(silent.message)) return silent;
+  if (silent.ok) return silent;
   return runNodeScript(scriptName, credentials, false);
 }
 
